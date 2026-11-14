@@ -192,4 +192,5 @@ Layout:
 
 ## License
 
-No license has been chosen yet — add one before publishing.
+MIT — see [LICENSE](LICENSE). You may use, modify, distribute, sublicense and
+sell this software, provided the copyright notice is retained.
