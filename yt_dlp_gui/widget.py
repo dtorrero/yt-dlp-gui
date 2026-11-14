@@ -435,6 +435,10 @@ class WidgetWindow(QWidget):
         self._rows: dict[str, JobRow] = {}
         self._drag_active = False
         self._clipboard_connected = False
+        self._height_timer = QTimer(self)
+        self._height_timer.setSingleShot(True)
+        self._height_timer.setInterval(0)
+        self._height_timer.timeout.connect(self._apply_content_height)
 
         self.setWindowTitle("yt-dlp widget")
         self.setWindowIcon(app_icon())
@@ -764,11 +768,17 @@ class WidgetWindow(QWidget):
         return max(1, layout.sizeHint().height())
 
     def _sync_height(self) -> None:
-        """Keep the widget exactly as tall as its content.
+        """Schedule a content-height update for the next event-loop turn.
 
-        A restored geometry from a session that had queue rows must not leave
-        empty bands between the header, the input and the queue.
+        Qt refreshes layout size hints asynchronously after rows are removed
+        or the queue is hidden; measuring immediately would still return the
+        old (larger) height and pin the window to it. Coalesce quick
+        consecutive requests into a single zero-delay timer.
         """
+        if not self._height_timer.isActive():
+            self._height_timer.start()
+
+    def _apply_content_height(self) -> None:
         self.setFixedHeight(self._content_height())
 
     def save_geometry(self) -> None:

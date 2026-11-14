@@ -178,6 +178,33 @@ def test_paste_button_reads_clipboard(window, qapp):
     assert window.url_edit.text() == "https://example.com/clip"
 
 
+def test_clear_finished_restores_base_height(window, tmp_path, qapp):
+    for index in range(2):
+        job = DownloadJob(
+            id=f"done{index}",
+            url=f"https://example.com/{index}",
+            title=f"Finished {index}",
+            status=JobStatus.DONE,
+            percent=100.0,
+            output_path=str(tmp_path / f"video{index}.mp4"),
+        )
+        window.manager._jobs[job.id] = job
+        window.manager.job_added.emit(job.id)
+
+    window.show()
+    qapp.processEvents()
+    tall_height = window.height()
+    assert tall_height > 200
+
+    window._clear_finished()
+    qapp.processEvents()
+
+    assert window.height() == window._content_height()
+    assert window.height() < 200
+    assert window.height() < tall_height
+    assert window.queue_box.isHidden()
+
+
 def test_saved_tall_geometry_does_not_stretch_layout(qapp, ini_settings):
     """A geometry saved while the queue had rows must not leave empty bands."""
     from PySide6.QtWidgets import QWidget
