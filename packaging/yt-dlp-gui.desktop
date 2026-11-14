@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=yt-dlp widget
+GenericName=Video downloader widget
+Comment=Small always-on-top widget to download videos with yt-dlp
+Exec=yt-dlp-gui
+Icon=yt-dlp-gui
+Terminal=false
+Categories=AudioVideo;Video;
+Keywords=yt-dlp;youtube;download;video;widget;
+StartupNotify=false
