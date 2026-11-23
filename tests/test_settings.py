@@ -12,6 +12,8 @@ def test_defaults(ini_settings, qapp):
     assert config.max_concurrent == 1
     assert config.always_on_top is True
     assert config.clipboard_watch is False
+    assert config.allow_playlist is False
+    assert config.split_chapters is False
     assert config.media_player == "vlc"
     assert config.download_dir
 
@@ -25,6 +27,7 @@ def test_roundtrip(ini_settings, qapp):
         start_with_session=True,
         clipboard_watch=True,
         allow_playlist=True,
+        split_chapters=True,
         max_concurrent=3,
         media_player="mpv",
         yt_dlp_path="/usr/local/bin/yt-dlp",
@@ -38,6 +41,7 @@ def test_roundtrip(ini_settings, qapp):
     assert loaded.start_with_session is True
     assert loaded.clipboard_watch is True
     assert loaded.allow_playlist is True
+    assert loaded.split_chapters is True
     assert loaded.max_concurrent == 3
     assert loaded.media_player == "mpv"
     assert loaded.yt_dlp_path == original.yt_dlp_path

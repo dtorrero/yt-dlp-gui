@@ -71,6 +71,7 @@ class AppConfig:
     start_with_session: bool = False
     clipboard_watch: bool = False
     allow_playlist: bool = False
+    split_chapters: bool = False
     max_concurrent: int = 1
     media_player: str = DEFAULT_MEDIA_PLAYER
     yt_dlp_path: str = ""
@@ -104,6 +105,9 @@ def load_config(settings: QSettings | None = None) -> AppConfig:
     config.allow_playlist = bool(
         settings.value("downloads/allow_playlist", config.allow_playlist, type=bool)
     )
+    config.split_chapters = bool(
+        settings.value("downloads/split_chapters", config.split_chapters, type=bool)
+    )
 
     try:
         concurrent = int(settings.value("downloads/max_concurrent", config.max_concurrent))
@@ -129,6 +133,7 @@ def save_config(config: AppConfig, settings: QSettings | None = None) -> None:
     settings.setValue("downloads/format_preset", config.format_preset)
     settings.setValue("downloads/filename_template", config.filename_template)
     settings.setValue("downloads/allow_playlist", config.allow_playlist)
+    settings.setValue("downloads/split_chapters", config.split_chapters)
     settings.setValue("downloads/max_concurrent", config.max_concurrent)
     settings.setValue("ui/always_on_top", config.always_on_top)
     settings.setValue("ui/clipboard_watch", config.clipboard_watch)

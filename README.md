@@ -34,7 +34,8 @@ from a URL you paste or **drag from your browser**.
   quit. Always-on-top and tray-hiding are independent.
 - **Settings** — download folder (defaults to your localised XDG `Downloads`
   folder, e.g. `~/Descargas`), quality preset, filename template, simultaneous
-  downloads, playlist handling, clipboard watcher, autostart.
+  downloads, playlist handling, optional chapter splitting, clipboard watcher,
+  autostart.
 - **Single instance** — launching again (menu or terminal) raises and focuses
   the existing widget, including an open Settings dialog. A stale lock is
   recovered automatically. Note that `yt-dlp` itself is a Python program, so
@@ -147,6 +148,7 @@ another unless "Simultaneous downloads" is increased.
 | Always on top | Window stays above other windows while visible |
 | Start with session | XDG autostart entry, starts hidden in the tray |
 | Clipboard watcher | Pre-fills the field when a link is copied (off by default) |
+| Split chapters | Off = one file per video, on = `--split-chapters` (one file per chapter, when available) |
 | Playlists | Off = `--no-playlist` (single video), on = download the playlist |
 
 Settings live in `~/.config/yt-dlp-gui/yt-dlp-gui.conf` (QSettings INI).
@@ -185,6 +187,8 @@ Layout:
 
 - One queue row per URL; a playlist is one row that reports the current item.
 - Canceling leaves yt-dlp's `.part` file behind (yt-dlp resumes it next time).
+- With chapter splitting enabled, chapter files use yt-dlp's built-in chapter
+  filename template rather than the configured Filename template.
 - Cookies / age-restricted videos, SponsorBlock and subtitle options are not
   exposed yet.
 - The UI is English-only for now; it is not a KDE Plasma plasmoid, just a

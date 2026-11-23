@@ -175,6 +175,8 @@ def build_args(config: AppConfig, url: str, executable: str = "yt-dlp") -> list[
     args.extend(str(argument) for argument in preset["arguments"])
     if not config.allow_playlist:
         args.append("--no-playlist")
+    if config.split_chapters:
+        args.append("--split-chapters")
     args.append(url)
     return args
 

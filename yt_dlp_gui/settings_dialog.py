@@ -116,6 +116,21 @@ class SettingsDialog(QDialog):
         self.playlist_check.setChecked(self._config.allow_playlist)
         layout.addWidget(self.playlist_check)
 
+        self.split_chapters_check = QCheckBox("Split videos into chapters (when available)")
+        self.split_chapters_check.setChecked(self._config.split_chapters)
+        self.split_chapters_check.setToolTip(
+            "Adds --split-chapters. Videos without chapter metadata download as one file."
+        )
+        layout.addWidget(self.split_chapters_check)
+
+        self.split_chapters_note = QLabel(
+            "Note: chapter files use yt-dlp's own chapter filename template "
+            "(title - number chapter title [id].ext), not the Filename template above."
+        )
+        self.split_chapters_note.setObjectName("muted")
+        self.split_chapters_note.setWordWrap(True)
+        layout.addWidget(self.split_chapters_note)
+
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
         )
@@ -207,6 +222,7 @@ class SettingsDialog(QDialog):
             start_with_session=self.autostart_check.isChecked(),
             clipboard_watch=self.clipboard_check.isChecked(),
             allow_playlist=self.playlist_check.isChecked(),
+            split_chapters=self.split_chapters_check.isChecked(),
             max_concurrent=self.concurrent_spin.value(),
             media_player=str(self.player_combo.currentData()),
             yt_dlp_path=self.ytdlp_edit.text().strip(),
