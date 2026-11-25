@@ -220,8 +220,28 @@ class TitleBar(QWidget):
 
     # -- window dragging -------------------------------------------------
 
+    def _start_system_move(self) -> bool:
+        """Ask the compositor to run an interactive move.
+
+        Wayland does not let clients place their own windows, so ``move()``
+        is a no-op there.  ``startSystemMove()`` is the supported way to let
+        the user drag the window; it must be called from a mouse press while
+        the button is still held.  The X11/offscreen path keeps using the
+        offset-based drag below, which is what has always worked there.
+        """
+        if not QGuiApplication.platformName().startswith("wayland"):
+            return False
+        handle = self._window.windowHandle()
+        if handle is None:
+            return False
+        self._drag_offset = None
+        return handle.startSystemMove()
+
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
+            if self._start_system_move():
+                event.accept()
+                return
             self._drag_offset = (
                 event.globalPosition().toPoint() - self._window.frameGeometry().topLeft()
             )
@@ -435,6 +455,7 @@ class WidgetWindow(QWidget):
         self._rows: dict[str, JobRow] = {}
         self._drag_active = False
         self._clipboard_connected = False
+        self._closing_for_quit = False
         self._height_timer = QTimer(self)
         self._height_timer.setSingleShot(True)
         self._height_timer.setInterval(0)
@@ -711,9 +732,13 @@ class WidgetWindow(QWidget):
         if current == enabled:
             return
         visible = self.isVisible()
+        position = self.pos()
+        # Changing window flags recreates the native window, which forgets the
+        # position (and on Wayland lets the compositor place it again).
         self.setWindowFlags(self._window_flags(enabled))
         if visible:
             self.show()
+            self.move(position)
 
     def set_clipboard_watch(self, enabled: bool) -> None:
         clipboard = QGuiApplication.clipboard()
@@ -801,12 +826,26 @@ class WidgetWindow(QWidget):
         )
 
     def _move_to_default_position(self) -> None:
+        """Park the widget in the top-right corner of the primary screen."""
         screen = QGuiApplication.primaryScreen()
         if screen is None:
             return
         area = screen.availableGeometry()
         self._sync_height()
-        self.move(area.right() - self.width() - 32, area.top() + 48)
+        width = self.width() or self.sizeHint().width()
+        height = self.height() or self.sizeHint().height()
+        # right()/bottom() are inclusive; keep the whole window inside the
+        # available area even on very small or mirrored screens.
+        x = max(area.left(), area.right() - width - 32)
+        y = max(area.top(), min(area.top() + 48, area.bottom() - height))
+        self.move(x, y)
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        # A geometry saved with another monitor layout (or a placement chosen
+        # by the compositor) may leave the widget unreachable: bring it back.
+        if not self._geometry_on_screen():
+            self._move_to_default_position()
 
     def show_and_raise(self) -> None:
         """Bring the widget (or an open settings dialog) to the foreground."""
@@ -822,6 +861,20 @@ class WidgetWindow(QWidget):
 
     def closeEvent(self, event) -> None:
         self.save_geometry()
+        if self._closing_for_quit:
+            event.accept()
+            return
+        # The × button and the window manager's close request hide the widget
+        # to the tray; only the tray menu really quits the application.
         event.ignore()
         self.hide_requested.emit()
+
+    def allow_close(self) -> None:
+        """Let the next close request actually close the window.
+
+        Needed when quitting: Qt's ``QApplication.quit()`` closes every visible
+        window first, and a close event ignored by :meth:`closeEvent` would
+        cancel the quit.
+        """
+        self._closing_for_quit = True
 

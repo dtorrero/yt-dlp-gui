@@ -22,8 +22,9 @@ from a URL you paste or **drag from your browser**.
 
 - **Drag & drop from the browser** — drag a link or the address-bar URL onto the
   widget (`text/uri-list`, `text/plain` and Firefox's `text/x-moz-url` are all
-  understood). On X11 this works with Firefox and Chromium; on Wayland it
-  depends on the browser, so the Paste button is always there as a fallback.
+  understood). This works with Firefox and Chromium; on Wayland the widget runs
+  through XWayland by default, so the compositor bridges the drag (see
+  [Wayland](#wayland)). The Paste button is always there as a fallback.
 - **Paste / Ctrl+V** — paste one or multiple links; each is queued.
 - **Queue with live progress** — title, progress bar, speed, ETA, per-job
   cancel, "Open folder" when done, "Clear finished".
@@ -83,6 +84,24 @@ Start hidden in the tray:
 ```bash
 yt-dlp-gui --hidden
 ```
+
+### Wayland
+
+On Wayland the widget runs through **XWayland** by default. The Wayland
+`xdg-shell` protocol lets the compositor decide where a window goes and has no
+"keep above" request, so a native Wayland window cannot be positioned by the
+app (it opens centred and the title bar cannot drag it) and the always-on-top
+pin does nothing. XWayland restores all three behaviours on KDE, GNOME and
+wlroots desktops alike.
+
+- The Qt platform is picked at startup and falls back to native Wayland
+  automatically when XWayland is unavailable (Qt's `xcb;wayland` plugin list).
+- An explicitly set `QT_QPA_PLATFORM` is always respected.
+- Set `YTDLP_GUI_NATIVE_WAYLAND=1` to force native Wayland. The title bar can
+  then still move the window (`startSystemMove()`), but the compositor chooses
+  its position, only the size is remembered, and the always-on-top pin has no
+  effect. Background clipboard watching and single-instance raising are also
+  restricted by the compositor; use the Paste button and the tray icon.
 
 ### KDE / desktop menu entry
 
@@ -145,7 +164,7 @@ another unless "Simultaneous downloads" is increased.
 | yt-dlp binary | Optional path override; auto-detected otherwise |
 | Media player | VLC (default) or MPV, used by the play button on finished items |
 | Simultaneous downloads | 1–5 parallel yt-dlp processes |
-| Always on top | Window stays above other windows while visible |
+| Always on top | Window stays above other windows while visible (needs the default XWayland path on Wayland; see [Wayland](#wayland)) |
 | Start with session | XDG autostart entry, starts hidden in the tray |
 | Clipboard watcher | Pre-fills the field when a link is copied (off by default) |
 | Split chapters | Off = one file per video, on = `--split-chapters` (one file per chapter, when available) |
@@ -171,6 +190,7 @@ Layout:
 ├── scripts/
 │   └── generate_icons.py  # renders the modern wordmark PNGs
 ├── yt_dlp_gui/
+│   ├── __main__.py        # `python -m` entry; picks XWayland vs native Wayland
 │   ├── app.py             # QApplication, tray, single instance, autostart
 │   ├── widget.py          # frameless window, title bar, job rows, drag & drop
 │   ├── downloader.py      # DownloadManager (QProcess), arg builder, progress parser
@@ -192,7 +212,14 @@ Layout:
 - Cookies / age-restricted videos, SponsorBlock and subtitle options are not
   exposed yet.
 - The UI is English-only for now; it is not a KDE Plasma plasmoid, just a
-  frameless `Qt.Tool` window (so it does not appear in Alt-Tab, by design).
+  frameless `Qt.Tool` window (so it does not appear in Alt-Tab on X11/XWayland,
+  by design; on native Wayland taskbar/Alt-Tab handling is up to the
+  compositor).
+- Native Wayland (`YTDLP_GUI_NATIVE_WAYLAND=1`): the compositor positions the
+  window, ignores always-on-top and may refuse focus requests, so the default
+  XWayland path is what most users want.
+- Background clipboard watching only sees new links while the widget is focused
+  on native Wayland; it works in the background on X11/XWayland (the default).
 
 ## License
 

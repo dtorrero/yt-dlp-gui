@@ -162,6 +162,7 @@ def main(argv: list[str] | None = None) -> int:
         if quit_state["done"]:
             return
         quit_state["done"] = True
+        window.allow_close()
         window.save_geometry()
         manager.shutdown()
         tray.hide()

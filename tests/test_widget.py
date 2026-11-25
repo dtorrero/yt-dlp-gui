@@ -1,6 +1,6 @@
 import pytest
-from PySide6.QtCore import QMimeData, QObject, QPointF, QUrl, Qt, Signal
-from PySide6.QtGui import QDropEvent
+from PySide6.QtCore import QEvent, QMimeData, QObject, QPoint, QPointF, QUrl, Qt, Signal
+from PySide6.QtGui import QCloseEvent, QDropEvent, QGuiApplication, QMouseEvent
 
 from yt_dlp_gui.downloader import DownloadJob, JobStatus
 from yt_dlp_gui.settings import AppConfig
@@ -231,3 +231,123 @@ def test_saved_tall_geometry_does_not_stretch_layout(qapp, ini_settings):
     finally:
         win.deleteLater()
 
+
+def test_window_flags_follow_always_on_top():
+    on_top = WidgetWindow._window_flags(True)
+    assert on_top & Qt.WindowType.WindowStaysOnTopHint
+    assert on_top & Qt.WindowType.FramelessWindowHint
+    assert on_top & Qt.WindowType.Tool
+    assert not WidgetWindow._window_flags(False) & Qt.WindowType.WindowStaysOnTopHint
+
+
+def test_pin_toggle_keeps_the_window_position(window, qapp):
+    window.show()
+    window.move(120, 80)
+    qapp.processEvents()
+
+    window.set_always_on_top(False)
+    qapp.processEvents()
+    assert not window.config.always_on_top
+    assert not window.windowFlags() & Qt.WindowType.WindowStaysOnTopHint
+    assert window.pos() == QPoint(120, 80)
+
+    window.set_always_on_top(True)
+    qapp.processEvents()
+    assert window.config.always_on_top
+    assert window.windowFlags() & Qt.WindowType.WindowStaysOnTopHint
+    assert window.pos() == QPoint(120, 80)
+
+
+def test_default_position_is_the_top_right_corner(window):
+    screen = QGuiApplication.primaryScreen()
+    assert screen is not None
+    area = screen.availableGeometry()
+
+    window._move_to_default_position()
+
+    pos = window.pos()
+    assert area.contains(pos)
+    assert pos.x() + window.width() <= area.right() + 1
+    assert pos.y() == area.top() + 48
+
+
+def test_system_move_is_not_used_off_wayland(window):
+    window.show()
+    assert not window.header._start_system_move()
+
+
+def test_titlebar_prefers_system_move_when_available(window, monkeypatch):
+    window.show()
+    calls = []
+    monkeypatch.setattr(
+        window.header, "_start_system_move", lambda: calls.append(True) or True
+    )
+
+    press = QMouseEvent(
+        QEvent.Type.MouseButtonPress,
+        QPointF(5, 5),
+        QPointF(105, 105),
+        Qt.MouseButton.LeftButton,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+    window.header.mousePressEvent(press)
+
+    assert calls == [True]
+    assert window.header._drag_offset is None
+
+
+def test_titlebar_drags_window_without_system_move(window, qapp):
+    window.show()
+    window.move(100, 100)
+    qapp.processEvents()
+
+    press = QMouseEvent(
+        QEvent.Type.MouseButtonPress,
+        QPointF(5, 5),
+        QPointF(105, 105),
+        Qt.MouseButton.LeftButton,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+    window.header.mousePressEvent(press)
+
+    move = QMouseEvent(
+        QEvent.Type.MouseMove,
+        QPointF(35, 25),
+        QPointF(135, 125),
+        Qt.MouseButton.NoButton,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+    window.header.mouseMoveEvent(move)
+
+    assert window.pos() == QPoint(130, 120)
+
+    release = QMouseEvent(
+        QEvent.Type.MouseButtonRelease,
+        QPointF(35, 25),
+        QPointF(135, 125),
+        Qt.MouseButton.LeftButton,
+        Qt.MouseButton.NoButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+    window.header.mouseReleaseEvent(release)
+    assert window.header._drag_offset is None
+
+
+
+
+def test_close_hides_to_tray_until_a_quit_allows_it(window):
+    hidden = []
+    window.hide_requested.connect(lambda: hidden.append(True))
+
+    hide_event = QCloseEvent()
+    window.closeEvent(hide_event)
+    assert not hide_event.isAccepted()
+    assert hidden == [True]
+
+    window.allow_close()
+    quit_event = QCloseEvent()
+    window.closeEvent(quit_event)
+    assert quit_event.isAccepted()
